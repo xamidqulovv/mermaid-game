@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Игра с русалкой</title>
+<style>
+  * {
+    box-sizing: border-box;
+  }
+  body, html {
+    margin: 0; padding: 0; height: 100%;
+    font-family: 'Segoe UI Emoji', 'Arial', sans-serif;
+    user-select: none;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #003f5c; /* глубокий синий фон */
+  }
+  #game {
+    position: relative;
+    width: 400px;
+    height: 600px;
+    border-radius: 20px;
+    box-shadow: 0 0 30px #0a8ac9;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 50% 100%, #1c7293cc, transparent 60%),
+      linear-gradient(to top, #00557f, #0099cc);
+    user-select: none;
+  }
+  /* Булькающие пузырьки */
+  #game::before {
+    content: "";
+    position: absolute;
+    width: 150%;
+    height: 150%;
+    top: -30%;
+    left: -25%;
+    background:
+      radial-gradient(circle, rgba(255 255 255 / 0.2) 5px, transparent 6px),
+      radial-gradient(circle, rgba(255 255 255 / 0.15) 4px, transparent 5px),
+      radial-gradient(circle, rgba(255 255 255 / 0.1) 3px, transparent 4px);
+    background-repeat: repeat;
+    background-size: 50px 50px;
+    animation: bubbles 15s linear infinite;
+    pointer-events: none;
+    z-index: 0;
+  }
+  @keyframes bubbles {
+    0% {background-position: 0 100%, 20px 150%, 40px 120%;}
+    100% {background-position: 0 0%, 20px 50%, 40px 20%;}
+  }
+
+  #score {
+    position: absolute;
+    top: 15px;
+    left: 20px;
+    font-weight: 700;
+    font-size: 26px;
+    color: #b2f7ff;
+    text-shadow: 0 0 8px #33d6ff;
+    user-select: none;
+    z-index: 1000;
+  }
+  #message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #b3e5ffcc;
+    padding: 30px 40px;
+    border-radius: 28px;
+    font-size: 24px;
+    color: #004d66;
+    text-align: center;
+    box-shadow: 0 0 30px #33ccff;
+    display: none;
+    user-select: none;
+    z-index: 2000;
+  }
+  #restartBtn {
+    margin-top: 20px;
+    padding: 14px 36px;
+    font-size: 20px;
+    background: #0099cc;
+    border: none;
+    border-radius: 22px;
+    cursor: pointer;
+    font-weight: 700;
+    color: white;
+    box-shadow: 0 5px 12px #006680;
+    transition: background 0.3s ease;
+  }
+  #restartBtn:hover {
+    background: #006680;
+  }
+  #player {
+    position: absolute;
+    bottom: 30px;
+    left: 165px;
+    width: 70px;
+    height: 110px;
+    font-size: 100px;
+    line-height: 110px;
+    text-align: center;
+    user-select: none;
+    cursor: default;
+    z-index: 100;
+  }
+  .item {
+    position: absolute;
+    font-size: 38px;
+    user-select: none;
+    pointer-events: none;
+    width: 40px;
+    height: 40px;
+    text-align: center;
+    line-height: 40px;
+    user-select: none;
+    z-index: 10;
+  }
+  #startScreen {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 119, 179, 0.85);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    border-radius: 20px;
+    z-index: 3000;
+    user-select: none;
+  }
+  #startBtn {
+    background: #0099cc;
+    border: none;
+    border-radius: 22px;
+    padding: 20px 50px;
+    font-size: 28px;
+    color: white;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 5px 12px #006680;
+    transition: background 0.3s ease;
+  }
+  #startBtn:hover {
+    background: #006680;
+  }
+</style>
+</head>
+<body>
+
+<div id="game" tabindex="0" aria-label="Игра с русалкой">
+  <div id="score" aria-live="polite">Счёт: 0</div>
+
+  <div id="player" aria-label="Персонаж">🧜‍♀️</div>
+
+  <div id="message" role="alert">
+    Ой! Кальмар поймал!<br>Не расстраивайся!<br>
+    <button id="restartBtn" aria-label="Кнопка перезапуска игры">Играть заново</button>
+  </div>
+
+  <div id="startScreen" aria-label="Стартовый экран игры">
+    <button id="startBtn" aria-label="Кнопка начала игры">Начать игру</button>
+  </div>
+</div>
+
+<script>
+  const game = document.getElementById('game');
+  const player = document.getElementById('player');
+  const scoreElem = document.getElementById('score');
+  const message = document.getElementById('message');
+  const restartBtn = document.getElementById('restartBtn');
+  const startScreen = document.getElementById('startScreen');
+
+  const gameWidth = game.clientWidth;
+  const gameHeight = game.clientHeight;
+
+  let playerX = 165;
+  const playerWidth = 70;
+
+  let score = 0;
+  let gameOver = false;
+  let items = [];
+  let gameStarted = false;
+
+  const fishEmoji = "🐠";
+  const squidEmoji = "🦑";
+
+  function createItem(type) {
+    const div = document.createElement('div');
+    div.classList.add('item');
+    div.dataset.type = type;
+    div.style.position = 'absolute';
+    div.style.top = '-50px';
+    div.style.left = Math.random() * (gameWidth - 40) + 'px';
+    div.style.fontSize = "38px";
+    div.style.textAlign = 'center';
+    if(type === 'fish') {
+      div.textContent = fishEmoji;
+    } else if(type === 'squid') {
+      div.textContent = squidEmoji;
+    }
+    game.appendChild(div);
+    items.push(div);
+  }
+
+  function moveItems(delta) {
+    for(let i = items.length - 1; i >= 0; i--) {
+      const item = items[i];
+      let top = parseFloat(item.style.top);
+      top += delta * 0.3; // медленное падение
+      item.style.top = top + 'px';
+
+      if(top + 40 >= gameHeight - 30) {
+        const left = parseFloat(item.style.left);
+        if(left + 40 > playerX && left < playerX + playerWidth) {
+          if(item.dataset.type === 'fish') {
+            score++;
+            scoreElem.textContent = 'Счёт: ' + score;
+            item.remove();
+            items.splice(i, 1);
+            continue;
+          } else if(item.dataset.type === 'squid') {
+            gameOver = true;
+            message.style.display = 'block';
+            return;
+          }
+        }
+      }
+      if(top > gameHeight) {
+        item.remove();
+        items.splice(i,1);
+      }
+    }
+  }
+
+  let lastSpawn = 0;
+
+  function gameLoop(timestamp) {
+    if(gameOver || !gameStarted) return;
+    if(!lastSpawn) lastSpawn = timestamp;
+
+    if(timestamp - lastSpawn > 900) {
+      lastSpawn = timestamp;
+      if(Math.random() < 0.75) {
+        createItem('fish');
+      } else {
+        createItem('squid');
+      }
+    }
+    moveItems(16);
+    requestAnimationFrame(gameLoop);
+  }
+
+  // Быстрое передвижение игрока
+  function movePlayer(dir) {
+    if(gameOver || !gameStarted) return;
+    playerX += dir * 40;
+    if(playerX < 0) playerX = 0;
+    if(playerX > gameWidth - playerWidth) playerX = gameWidth - playerWidth;
+    player.style.left = playerX + 'px';
+  }
+
+  document.addEventListener('keydown', e => {
+    if(!gameStarted || gameOver) return;
+    if(e.key === 'ArrowLeft') movePlayer(-1);
+    else if(e.key === 'ArrowRight') movePlayer(1);
+  });
+
+  game.addEventListener('touchstart', e => {
+    if(!gameStarted || gameOver) return;
+    const touchX = e.touches[0].clientX - game.getBoundingClientRect().left;
+    if(touchX < playerX + playerWidth / 2) {
+      movePlayer(-1);
+    } else {
+      movePlayer(1);
+    }
+  });
+
+  restartBtn.onclick = () => {
+    items.forEach(i => i.remove());
+    items = [];
+    score = 0;
+    gameOver = false;
+    scoreElem.textContent = 'Счёт: 0';
+    message.style.display = 'none';
+    playerX = 165;
+    player.style.left = playerX + 'px';
+    lastSpawn = 0;
+    gameStarted = false;
+    startScreen.style.display = 'flex';
+  };
+
+  startBtn.onclick = () => {
+    startScreen.style.display = 'none';
+    gameStarted = true;
+    lastSpawn = 0;
+    requestAnimationFrame(gameLoop);
+  };
+</script>
+
+</body>
+</html>
